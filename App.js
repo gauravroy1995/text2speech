@@ -7,12 +7,15 @@ import {
   TouchableOpacity,
   Platform,
   Image,
+  PanResponder,
+  Animated,
 } from 'react-native';
 
 import MapView, {
   ProviderPropType,
   Marker,
   AnimatedRegion,
+  Polyline,
 } from 'react-native-maps';
 import carImage from './carImage.png';
 
@@ -42,9 +45,20 @@ class AnimatedMarkers extends React.Component {
       latitudeDelta: 0.0922,
       longitudeDelta: 0.0421,
       curAng: 45,
+      curPosArr: [{latitude: 37.420814, longitude: -122.081949}],
+      pan: new Animated.ValueXY(),
     };
   }
 
+  componentWillMount() {
+    this._panResp = PanResponder.create({
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([
+        null,
+        {dx: this.state.pan.x, dy: this.state.pan.y},
+      ]),
+    });
+  }
   // animate() {
   //   const {coordinate} = this.state;
   //   const newCoordinate = {
@@ -64,9 +78,12 @@ class AnimatedMarkers extends React.Component {
   changePosition = (latOffset, lonOffset) => {
     const latitude = this.state.curPos.latitude + latOffset;
     const longitude = this.state.curPos.longitude + lonOffset;
+    let currPosArr = [...this.state.curPosArr];
+    currPosArr.push({latitude, longitude});
     this.setState({
       prevPos: this.state.curPos,
       curPos: {latitude, longitude},
+      curPosArr: currPosArr,
     });
     this.updateMap();
   };
@@ -99,12 +116,6 @@ class AnimatedMarkers extends React.Component {
             longitudeDelta: this.state.longitudeDelta,
           }}
           ref={el => (this.map = el)}>
-          {/* <Marker
-            ref={marker => {
-              this.marker = marker;
-            }}
-            coordinate={this.state.coordinate}
-          /> */}
           <MapView.Marker
             coordinate={this.state.curPos}
             anchor={{x: 0.5, y: 0.5}}>
@@ -115,23 +126,39 @@ class AnimatedMarkers extends React.Component {
               />
             </View>
           </MapView.Marker>
+          <Polyline
+            coordinates={this.state.curPosArr}
+            strokeColor="#B24112" // fallback for when `strokeColors` is not supported by the map-provider
+            strokeColors={[
+              '#7F0000',
+              '#00000000', // no color, creates a "long" gradient between the previous and next coordinate
+              '#B24112',
+              '#E5845C',
+              '#238C23',
+              '#7F0000',
+            ]}
+            strokeWidth={6}
+          />
         </MapView>
-        {/* <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: 37.78825,
-            longitude: -122.4324,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-        /> */}
-        <View style={styles.buttonContainer}>
+        <Animated.View
+          style={[
+            styles.buttonContainer,
+            {
+              transform: [
+                {
+                  translateX: this.state.pan.x,
+                  translateY: this.state.pan.y,
+                },
+              ],
+            },
+          ]}
+          {...this._panResp.panHandlers}>
           <TouchableOpacity
-            onPress={() => this.changePosition(-0.0001, 0)}
+            onPress={() => this.changePosition(-0.0003, 0)}
             style={[styles.bubble, styles.button]}>
             <Text>Animate</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     );
   }
